@@ -1,0 +1,24 @@
+# Curated ART Baseline Profile for Kira Kit Gallery & KMP UI libraries.
+# Pre-compiles startup, theme token lookups, lazy gallery shell, and hot components
+# at install time via androidx.profileinstaller.
+HSPLcom/kirakit/android/MainActivity;->**(**)**
+HSPLcom/kirakit/theme/**;->**(**)**
+HSPLcom/kirakit/components/sidebar/**;->**(**)**
+HSPLcom/kirakit/components/button/**;->**(**)**
+HSPLcom/kirakit/components/card/**;->**(**)**
+HSPLcom/kirakit/components/skeleton/**;->**(**)**
+HSPLcom/kirakit/components/progress/**;->**(**)**
+HSPLcom/kirakit/components/badge/**;->**(**)**
+HSPLcom/kirakit/components/input/**;->**(**)**
+HSPLcom/kirakit/components/tabs/**;->**(**)**
+HSPLcom/kirakit/components/switch/**;->**(**)**
+HSPLcom/kirakit/components/slider/**;->**(**)**
+HSPLcom/kirakit/components/drawer/**;->**(**)**
+HSPLcom/kirakit/components/sheet/**;->**(**)**
+HSPLcom/kirakit/components/toast/**;->**(**)**
+HSPLcom/kirakit/gallery/GalleryAppKt;->**(**)**
+HSPLcom/kirakit/gallery/GalleryExampleKt;->**(**)**
+HSPLcom/kirakit/gallery/button/**;->**(**)**
+Lcom/kirakit/theme/**;
+Lcom/kirakit/components/**;
+Lcom/kirakit/gallery/**;

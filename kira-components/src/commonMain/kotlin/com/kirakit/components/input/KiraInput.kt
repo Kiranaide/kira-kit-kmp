@@ -55,6 +55,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -1934,32 +1935,37 @@ private fun InputInlineIconButton(
 @Composable
 private fun InputSpinner(color: Color, size: Dp) {
     val transition = rememberInfiniteTransition(label = "InputSpinner")
-    val rotation by transition.animateFloat(
+    val rotationState = transition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(tween(durationMillis = 900, easing = LinearEasing)),
         label = "InputSpinnerRotation",
     )
-    Canvas(Modifier.size(size).clearAndSetSemantics {}) {
-        val strokeWidth = (this.size.minDimension * 0.14f).coerceAtLeast(1.5.dp.toPx())
-        val stroke = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-        drawCircle(
-            color = color,
-            radius = this.size.minDimension / 2f - strokeWidth / 2f,
-            alpha = 0.25f,
-            style = stroke,
-        )
-        val inset = strokeWidth / 2f
-        drawArc(
-            color = color,
-            startAngle = rotation - 90f,
-            sweepAngle = 100f,
-            useCenter = false,
-            topLeft = Offset(inset, inset),
-            size = Size(this.size.width - strokeWidth, this.size.height - strokeWidth),
-            style = stroke,
-        )
-    }
+    Box(
+        Modifier
+            .size(size)
+            .clearAndSetSemantics {}
+            .drawWithCache {
+                val strokeWidth = (this.size.minDimension * 0.14f).coerceAtLeast(1.5.dp.toPx())
+                val stroke = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                val radius = this.size.minDimension / 2f - strokeWidth / 2f
+                val inset = strokeWidth / 2f
+                val topLeft = Offset(inset, inset)
+                val arcSize = Size(this.size.width - strokeWidth, this.size.height - strokeWidth)
+                onDrawBehind {
+                    drawCircle(color = color, radius = radius, alpha = 0.25f, style = stroke)
+                    drawArc(
+                        color = color,
+                        startAngle = rotationState.value - 90f,
+                        sweepAngle = 100f,
+                        useCenter = false,
+                        topLeft = topLeft,
+                        size = arcSize,
+                        style = stroke,
+                    )
+                }
+            },
+    )
 }
 
 @Composable

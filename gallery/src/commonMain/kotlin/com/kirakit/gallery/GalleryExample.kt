@@ -3,6 +3,7 @@
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -13,6 +14,22 @@ import com.kirakit.components.card.KiraCardSize
 import com.kirakit.theme.KiraTheme
 import com.kirakit.theme.spacing
 import com.kirakit.theme.typography
+
+internal fun LazyListScope.galleryHeading(title: String, key: String = "heading-$title") {
+    item(key = key, contentType = "section-heading") {
+        SectionHeading(title)
+    }
+}
+
+internal fun LazyListScope.galleryItem(
+    key: String,
+    contentType: String = "gallery-card",
+    content: @Composable () -> Unit,
+) {
+    item(key = key, contentType = contentType) {
+        content()
+    }
+}
 
 @Composable
 internal fun GalleryExample(title: String, content: @Composable () -> Unit) {

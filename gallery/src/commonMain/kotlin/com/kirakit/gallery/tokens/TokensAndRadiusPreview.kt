@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,6 +26,9 @@ import com.kirakit.theme.KiraRadiusPresets
 import com.kirakit.theme.KiraTheme
 import com.kirakit.theme.spacing
 import com.kirakit.theme.typography
+
+private val TokenRadiusOptions: List<Pair<String, String>> =
+    listOf("auto" to "Auto") + KiraRadiusPresets.All.map { it.id to it.title }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -40,10 +44,12 @@ internal fun TokensAndRadiusPreview(
         SectionHeading("Radius Scale")
         KiraCard(Modifier.fillMaxWidth()) {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.md)) {
-                val options = listOf("auto" to "Auto") + KiraRadiusPresets.All.map { it.id to it.title }
+                val selectedOption = remember(selectedRadiusId) {
+                    TokenRadiusOptions.firstOrNull { it.first == selectedRadiusId } ?: TokenRadiusOptions.first()
+                }
                 Choices(
-                    options = options,
-                    selected = options.first { it.first == selectedRadiusId },
+                    options = TokenRadiusOptions,
+                    selected = selectedOption,
                     label = { it.second },
                     onSelect = { onSelectRadius(it.first) },
                 )

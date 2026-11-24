@@ -1,0 +1,127 @@
+// !$*UTF8*$!
+{
+    archiveVersion = 1;
+    classes = {};
+    objectVersion = 56;
+    objects = {
+        AAAAAAAAAAAAAAAAAAAAAAA9 /* iOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAAAAAAAAAAAAAAAAAAAAA6; };
+        AAAAAAAAAAAAAAAAAAAAAAAA /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAAAAAAAAAAAAAAAAAAAAA7; };
+
+        AAAAAAAAAAAAAAAAAAAAAAA6 /* iOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iOSApp.swift; sourceTree = "<group>"; };
+        AAAAAAAAAAAAAAAAAAAAAAA7 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+        AAAAAAAAAAAAAAAAAAAAAAFF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+        AAAAAAAAAAAAAAAAAAAAAAA5 /* Gallery.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Gallery.xcconfig; sourceTree = "<group>"; };
+        AAAAAAAAAAAAAAAAAAAAAAA8 /* KiraGallery.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KiraGallery.app; sourceTree = BUILT_PRODUCTS_DIR; };
+
+        AAAAAAAAAAAAAAAAAAAAAAA2 = {
+            isa = PBXGroup;
+            children = (AAAAAAAAAAAAAAAAAAAAAAA3, AAAAAAAAAAAAAAAAAAAAAAA5, AAAAAAAAAAAAAAAAAAAAAAA4);
+            sourceTree = "<group>";
+        };
+        AAAAAAAAAAAAAAAAAAAAAAA3 /* iOS Sources */ = {
+            isa = PBXGroup;
+            children = (AAAAAAAAAAAAAAAAAAAAAAA6, AAAAAAAAAAAAAAAAAAAAAAA7, AAAAAAAAAAAAAAAAAAAAAAFF);
+            path = iosApp;
+            sourceTree = "<group>";
+        };
+        AAAAAAAAAAAAAAAAAAAAAAA4 /* Products */ = {
+            isa = PBXGroup;
+            children = (AAAAAAAAAAAAAAAAAAAAAAA8);
+            name = Products;
+            sourceTree = "<group>";
+        };
+
+        AAAAAAAAAAAAAAAAAAAAAAAB /* KiraGallery */ = {
+            isa = PBXNativeTarget;
+            buildConfigurationList = AAAAAAAAAAAAAAAAAAAAAA11;
+            buildPhases = (AAAAAAAAAAAAAAAAAAAAAAAC, AAAAAAAAAAAAAAAAAAAAAAAD, AAAAAAAAAAAAAAAAAAAAAAAE, AAAAAAAAAAAAAAAAAAAAAAAF);
+            buildRules = ();
+            dependencies = ();
+            name = KiraGallery;
+            productName = KiraGallery;
+            productReference = AAAAAAAAAAAAAAAAAAAAAAA8;
+            productType = "com.apple.product-type.application";
+        };
+        AAAAAAAAAAAAAAAAAAAAAAA1 /* Project object */ = {
+            isa = PBXProject;
+            buildConfigurationList = AAAAAAAAAAAAAAAAAAAAAA10;
+            compatibilityVersion = "Xcode 14.0";
+            developmentRegion = en;
+            hasScannedForEncodings = 0;
+            knownRegions = (en, Base);
+            mainGroup = AAAAAAAAAAAAAAAAAAAAAAA2;
+            productRefGroup = AAAAAAAAAAAAAAAAAAAAAAA4;
+            projectDirPath = "";
+            projectRoot = "";
+            targets = (AAAAAAAAAAAAAAAAAAAAAAAB);
+        };
+
+        AAAAAAAAAAAAAAAAAAAAAAAC /* Build Kotlin framework */ = {
+            isa = PBXShellScriptBuildPhase;
+            alwaysOutOfDate = 1;
+            buildActionMask = 2147483647;
+            files = ();
+            inputPaths = ();
+            name = "Build Kotlin framework";
+            outputPaths = ();
+            runOnlyForDeploymentPostprocessing = 0;
+            shellPath = /bin/sh;
+            shellScript = "set -e\nif [ \"${OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED:-}\" = YES ]; then exit 0; fi\ncd \"$SRCROOT/..\"\n/bin/sh ./gradlew :gallery:embedAndSignAppleFrameworkForXcode\n";
+        };
+        AAAAAAAAAAAAAAAAAAAAAAAD /* Sources */ = {
+            isa = PBXSourcesBuildPhase;
+            buildActionMask = 2147483647;
+            files = (AAAAAAAAAAAAAAAAAAAAAAA9, AAAAAAAAAAAAAAAAAAAAAAAA);
+            runOnlyForDeploymentPostprocessing = 0;
+        };
+        AAAAAAAAAAAAAAAAAAAAAAAE /* Frameworks */ = {
+            isa = PBXFrameworksBuildPhase;
+            buildActionMask = 2147483647;
+            files = ();
+            runOnlyForDeploymentPostprocessing = 0;
+        };
+        AAAAAAAAAAAAAAAAAAAAAAAF /* Resources */ = {
+            isa = PBXResourcesBuildPhase;
+            buildActionMask = 2147483647;
+            files = ();
+            runOnlyForDeploymentPostprocessing = 0;
+        };
+
+        AAAAAAAAAAAAAAAAAAAAAA12 /* Debug */ = {
+            isa = XCBuildConfiguration;
+            buildSettings = {
+                DEBUG_INFORMATION_FORMAT = dwarf;
+                ENABLE_TESTABILITY = YES;
+                SDKROOT = iphoneos;
+                SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+            };
+            name = Debug;
+        };
+        AAAAAAAAAAAAAAAAAAAAAA13 /* Release */ = {
+            isa = XCBuildConfiguration;
+            buildSettings = {
+                DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+                SDKROOT = iphoneos;
+                SWIFT_COMPILATION_MODE = wholemodule;
+            };
+            name = Release;
+        };
+        AAAAAAAAAAAAAAAAAAAAAA14 /* Debug */ = {isa = XCBuildConfiguration; baseConfigurationReference = AAAAAAAAAAAAAAAAAAAAAAA5; buildSettings = {}; name = Debug; };
+        AAAAAAAAAAAAAAAAAAAAAA15 /* Release */ = {isa = XCBuildConfiguration; baseConfigurationReference = AAAAAAAAAAAAAAAAAAAAAAA5; buildSettings = {}; name = Release; };
+
+        AAAAAAAAAAAAAAAAAAAAAA10 = {
+            isa = XCConfigurationList;
+            buildConfigurations = (AAAAAAAAAAAAAAAAAAAAAA12, AAAAAAAAAAAAAAAAAAAAAA13);
+            defaultConfigurationIsVisible = 0;
+            defaultConfigurationName = Release;
+        };
+        AAAAAAAAAAAAAAAAAAAAAA11 = {
+            isa = XCConfigurationList;
+            buildConfigurations = (AAAAAAAAAAAAAAAAAAAAAA14, AAAAAAAAAAAAAAAAAAAAAA15);
+            defaultConfigurationIsVisible = 0;
+            defaultConfigurationName = Release;
+        };
+    };
+    rootObject = AAAAAAAAAAAAAAAAAAAAAAA1;
+}
+

@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [development, main]
+  push:
+    branches: [development, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/development' }}
+
+jobs:
+  verify-linux:
+    name: Verify (Linux — JVM, Android, ABI)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup JDK, Android SDK, and Gradle
+        uses: ./.github/actions/setup-android-sdk
+        with:
+          gradle-cache-read-only: ${{ github.event_name == 'pull_request' }}
+
+      - name: Run JVM & Android host tests, ABI check, and builds
+        run: |
+          ./gradlew \
+            :kira-theme:jvmTest :kira-components:jvmTest \
+            :kira-theme:testAndroidHostTest :kira-components:testAndroidHostTest \
+            :kira-theme:checkKotlinAbi :kira-components:checkKotlinAbi \
+            :gallery:compileKotlinJvm \
+            :androidApp:assembleDebug \
+            :kira-theme:publishToMavenLocal :kira-components:publishToMavenLocal
+
+      - name: Upload Android debug APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-android-debug-apk
+          path: androidApp/build/outputs/apk/debug/*.apk
+          retention-days: 7
+
+  verify-apple:
+    name: Verify (macOS — iOS Tests & Xcode Build)
+    runs-on: macos-26
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup JDK, Android SDK, and Gradle
+        uses: ./.github/actions/setup-android-sdk
+        with:
+          gradle-cache-read-only: ${{ github.event_name == 'pull_request' }}
+
+      - name: Cache Kotlin/Native toolchains
+        uses: actions/cache@v6
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml', '**/build.gradle.kts') }}
+          restore-keys: |
+            konan-${{ runner.os }}-
+
+      - name: Run iOS simulator tests
+        run: ./gradlew :kira-theme:iosSimulatorArm64Test :kira-components:iosSimulatorArm64Test
+
+      - name: Verify Xcode iOS Simulator build
+        run: |
+          xcodebuild build \
+            -project iosApp/KiraGallery.xcodeproj \
+            -scheme KiraGallery \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO

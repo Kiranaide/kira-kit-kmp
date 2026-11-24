@@ -1,0 +1,169 @@
+name: Development Snapshots & Test Builds
+
+on:
+  push:
+    branches: [development]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dev-publish
+  cancel-in-progress: false
+
+jobs:
+  publish-snapshots:
+    name: Publish KMP Snapshots (macOS — all targets)
+    runs-on: macos-26
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup JDK, Android SDK, and Gradle
+        uses: ./.github/actions/setup-android-sdk
+
+      - name: Cache Kotlin/Native toolchains
+        uses: actions/cache@v6
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml', '**/build.gradle.kts') }}
+          restore-keys: |
+            konan-${{ runner.os }}-
+
+      - name: Resolve snapshot version
+        id: version
+        run: |
+          BASE_VERSION="$(grep -E '^VERSION_NAME=' gradle.properties | cut -d'=' -f2- | tr -d '\r\n')"
+          SNAPSHOT_VERSION="${BASE_VERSION%-SNAPSHOT}-SNAPSHOT"
+          echo "value=${SNAPSHOT_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Publishing snapshot version: ${SNAPSHOT_VERSION}"
+
+      - name: Checkout or initialize gh-pages branch
+        run: |
+          set -euo pipefail
+          git fetch origin gh-pages 2>/dev/null || true
+          if git show-ref --verify --quiet refs/remotes/origin/gh-pages; then
+            git worktree add _gh-pages origin/gh-pages
+            git -C _gh-pages checkout -B gh-pages origin/gh-pages
+          else
+            git worktree add --orphan -b gh-pages _gh-pages
+            cat <<'EOF' > _gh-pages/index.html
+          <!doctype html>
+          <html lang="en">
+          <head><meta charset="utf-8"><title>Kira Kit KMP Maven Repository</title></head>
+          <body>
+            <h1>Kira Kit KMP Maven Repository</h1>
+            <ul>
+              <li>Releases: <code>https://kiranaide.github.io/kira-kit-kmp/releases</code></li>
+              <li>Snapshots: <code>https://kiranaide.github.io/kira-kit-kmp/snapshots</code></li>
+            </ul>
+          </body>
+          </html>
+          EOF
+            touch _gh-pages/.nojekyll
+          fi
+          mkdir -p _gh-pages/releases _gh-pages/snapshots
+
+      - name: Publish all KMP targets to StaticMaven (snapshots)
+        run: |
+          ./gradlew \
+            :kira-theme:publishAllPublicationsToStaticMavenRepository \
+            :kira-components:publishAllPublicationsToStaticMavenRepository \
+            -PVERSION_NAME="${{ steps.version.outputs.value }}" \
+            -PstaticMavenDir="_gh-pages/snapshots"
+
+      - name: Push snapshots to gh-pages
+        run: |
+          set -euo pipefail
+          cd _gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No snapshot changes to push."
+            exit 0
+          fi
+          git commit -m "chore(maven): publish ${{ steps.version.outputs.value }} (${GITHUB_SHA::7})"
+          for attempt in 1 2 3; do
+            if git push origin gh-pages; then
+              exit 0
+            fi
+            git pull --rebase origin gh-pages || true
+          done
+          exit 1
+
+      - name: Publish snapshots to Custom Self-Hosted Maven (optional)
+        if: vars.ENABLE_CUSTOM_MAVEN == 'true'
+        env:
+          CUSTOM_MAVEN_URL: ${{ vars.CUSTOM_MAVEN_URL }}
+          CUSTOM_MAVEN_USERNAME: ${{ secrets.CUSTOM_MAVEN_USERNAME }}
+          CUSTOM_MAVEN_PASSWORD: ${{ secrets.CUSTOM_MAVEN_PASSWORD }}
+        run: |
+          ./gradlew \
+            :kira-theme:publishAllPublicationsToCustomMavenRepository \
+            :kira-components:publishAllPublicationsToCustomMavenRepository \
+            -PVERSION_NAME="${{ steps.version.outputs.value }}"
+
+  build-dev-android:
+    name: Build Dev Android Gallery APK
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup JDK, Android SDK, and Gradle
+        uses: ./.github/actions/setup-android-sdk
+
+      - name: Assemble Android debug APK
+        env:
+          CI_BUILD_NUMBER: ${{ github.run_number }}
+        run: ./gradlew :androidApp:assembleDebug
+
+      - name: Upload dev Android APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: dev-gallery-android-apk
+          path: androidApp/build/outputs/apk/debug/*.apk
+          retention-days: 14
+
+  build-dev-desktop:
+    name: Build Dev Desktop Gallery (${{ matrix.label }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-26
+            label: macOS arm64
+            task: :gallery:packageDmg
+            artifact_glob: gallery/build/compose/binaries/main/dmg/*.dmg
+            artifact_name: dev-gallery-macos-arm64
+          - os: windows-2025
+            label: Windows x64
+            task: :gallery:packageMsi
+            artifact_glob: gallery/build/compose/binaries/main/msi/*.msi
+            artifact_name: dev-gallery-windows-x64
+          - os: ubuntu-24.04
+            label: Linux x64
+            task: :gallery:packageDeb
+            artifact_glob: gallery/build/compose/binaries/main/deb/*.deb
+            artifact_name: dev-gallery-linux-x64
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup JDK, Android SDK, and Gradle
+        uses: ./.github/actions/setup-android-sdk
+        with:
+          setup-android: 'false'
+
+      - name: Package desktop installer
+        run: ./gradlew ${{ matrix.task }}
+
+      - name: Upload dev desktop installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_glob }}
+          retention-days: 14

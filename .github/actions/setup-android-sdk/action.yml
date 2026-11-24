@@ -1,0 +1,52 @@
+name: Setup JDK, Android SDK, and Gradle
+description: Configures JDK 21, Android SDK API 37 (with AGP 9.5 symlink workaround), and Gradle caching.
+
+inputs:
+  setup-android:
+    description: Install Android SDK Platform 37 and Build Tools
+    required: false
+    default: 'true'
+  gradle-cache-read-only:
+    description: Make Gradle cache read-only
+    required: false
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - name: Set up JDK 21
+      uses: actions/setup-java@v6
+      with:
+        distribution: temurin
+        java-version: '21'
+
+    - name: Setup Android SDK
+      if: inputs.setup-android == 'true'
+      uses: android-actions/setup-android@v3
+
+    - name: Install Android API 37 and Build Tools
+      if: inputs.setup-android == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+        if [ -z "$SDK_ROOT" ]; then
+          echo "ANDROID_HOME is not set" >&2
+          exit 1
+        fi
+        SDKMANAGER="$(command -v sdkmanager || echo "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager")"
+        yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
+        "$SDKMANAGER" "platforms;android-37.0" "build-tools;36.0.0" "build-tools;37.0.0" "platform-tools"
+        if [ -d "$SDK_ROOT/platforms/android-37.0" ] && [ ! -e "$SDK_ROOT/platforms/android-37" ]; then
+          ln -s "$SDK_ROOT/platforms/android-37.0" "$SDK_ROOT/platforms/android-37"
+        fi
+
+    - name: Ensure gradlew is executable
+      if: runner.os != 'Windows'
+      shell: bash
+      run: chmod +x gradlew
+
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v6
+      with:
+        cache-read-only: ${{ inputs.gradle-cache-read-only == 'true' }}

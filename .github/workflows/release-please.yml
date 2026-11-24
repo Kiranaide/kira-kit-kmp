@@ -1,0 +1,61 @@
+name: Release Please
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    name: Update Release PR / Cut Release
+    runs-on: ubuntu-24.04
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      used_app_token: ${{ steps.token_mode.outputs.used_app_token }}
+    steps:
+      - name: Generate GitHub App token (optional)
+        id: app_token
+        if: secrets.RELEASE_APP_ID != '' && secrets.RELEASE_APP_PRIVATE_KEY != ''
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+      - name: Record token mode
+        id: token_mode
+        run: |
+          if [ -n "${{ steps.app_token.outputs.token }}" ]; then
+            echo "used_app_token=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "used_app_token=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run Release Please
+        id: release
+        uses: googleapis/release-please-action@v5
+        with:
+          token: ${{ steps.app_token.outputs.token || secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  # When using the built-in GITHUB_TOKEN, tags created by Release Please do not trigger
+  # tag-push workflows automatically; chain release.yml directly here so releases work out of the box.
+  run-release:
+    name: Run Release Pipeline
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true' && needs.release-please.outputs.used_app_token != 'true'
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: ${{ needs.release-please.outputs.tag_name }}
+    secrets: inherit

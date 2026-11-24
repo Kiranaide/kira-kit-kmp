@@ -1,0 +1,290 @@
+name: Release Libraries & Showcase Apps
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+*'
+  workflow_call:
+    inputs:
+      tag:
+        description: Release tag to build and publish (e.g. v0.1.0)
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to build and publish (e.g. v0.1.0)
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  resolve-tag:
+    name: Resolve Release Metadata
+    runs-on: ubuntu-24.04
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      version: ${{ steps.meta.outputs.version }}
+    steps:
+      - name: Determine tag and version
+        id: meta
+        run: |
+          TAG="${{ inputs.tag || github.ref_name }}"
+          VERSION="${TAG#v}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Releasing tag=${TAG} version=${VERSION}"
+
+  publish-libraries:
+    name: Publish KMP Libraries (macOS — all targets)
+    needs: resolve-tag
+    runs-on: macos-26
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve-tag.outputs.tag }}
+
+      - name: Setup JDK, Android SDK, and Gradle
+        uses: ./.github/actions/setup-android-sdk
+
+      - name: Cache Kotlin/Native toolchains
+        uses: actions/cache@v6
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml', '**/build.gradle.kts') }}
+          restore-keys: |
+            konan-${{ runner.os }}-
+
+      - name: Verify library tests and ABI
+        run: |
+          ./gradlew \
+            :kira-theme:jvmTest :kira-components:jvmTest \
+            :kira-theme:testAndroidHostTest :kira-components:testAndroidHostTest \
+            :kira-theme:iosSimulatorArm64Test :kira-components:iosSimulatorArm64Test \
+            :kira-theme:checkKotlinAbi :kira-components:checkKotlinAbi
+
+      - name: Checkout or initialize gh-pages branch
+        run: |
+          set -euo pipefail
+          git fetch origin gh-pages 2>/dev/null || true
+          if git show-ref --verify --quiet refs/remotes/origin/gh-pages; then
+            git worktree add _gh-pages origin/gh-pages
+            git -C _gh-pages checkout -B gh-pages origin/gh-pages
+          else
+            git worktree add --orphan -b gh-pages _gh-pages
+            cat <<'EOF' > _gh-pages/index.html
+          <!doctype html>
+          <html lang="en">
+          <head><meta charset="utf-8"><title>Kira Kit KMP Maven Repository</title></head>
+          <body>
+            <h1>Kira Kit KMP Maven Repository</h1>
+            <ul>
+              <li>Releases: <code>https://kiranaide.github.io/kira-kit-kmp/releases</code></li>
+              <li>Snapshots: <code>https://kiranaide.github.io/kira-kit-kmp/snapshots</code></li>
+            </ul>
+          </body>
+          </html>
+          EOF
+            touch _gh-pages/.nojekyll
+          fi
+          mkdir -p _gh-pages/releases _gh-pages/snapshots
+
+      - name: Publish all KMP targets to StaticMaven (releases)
+        run: |
+          ./gradlew \
+            :kira-theme:publishAllPublicationsToStaticMavenRepository \
+            :kira-components:publishAllPublicationsToStaticMavenRepository \
+            -PVERSION_NAME="${{ needs.resolve-tag.outputs.version }}" \
+            -PstaticMavenDir="_gh-pages/releases"
+
+      - name: Push release Maven repository to gh-pages
+        run: |
+          set -euo pipefail
+          cd _gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No Maven release changes to push."
+            exit 0
+          fi
+          git commit -m "chore(maven): release ${{ needs.resolve-tag.outputs.tag }}"
+          for attempt in 1 2 3; do
+            if git push origin gh-pages; then
+              exit 0
+            fi
+            git pull --rebase origin gh-pages || true
+          done
+          exit 1
+
+      - name: Publish to Custom Self-Hosted Maven (optional)
+        if: vars.ENABLE_CUSTOM_MAVEN == 'true'
+        env:
+          CUSTOM_MAVEN_URL: ${{ vars.CUSTOM_MAVEN_URL }}
+          CUSTOM_MAVEN_USERNAME: ${{ secrets.CUSTOM_MAVEN_USERNAME }}
+          CUSTOM_MAVEN_PASSWORD: ${{ secrets.CUSTOM_MAVEN_PASSWORD }}
+        run: |
+          ./gradlew \
+            :kira-theme:publishAllPublicationsToCustomMavenRepository \
+            :kira-components:publishAllPublicationsToCustomMavenRepository \
+            -PVERSION_NAME="${{ needs.resolve-tag.outputs.version }}"
+
+      - name: Publish to Maven Central Portal (optional)
+        if: vars.ENABLE_MAVEN_CENTRAL == 'true'
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_SIGNING_PASSWORD }}
+        run: |
+          ./gradlew \
+            :kira-theme:publishAndReleaseToMavenCentral \
+            :kira-components:publishAndReleaseToMavenCentral \
+            -PVERSION_NAME="${{ needs.resolve-tag.outputs.version }}" \
+            -PRELEASE_SIGNING_ENABLED=true \
+            --no-configuration-cache
+
+  build-android:
+    name: Build Android Gallery Release APK
+    needs: resolve-tag
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve-tag.outputs.tag }}
+
+      - name: Setup JDK, Android SDK, and Gradle
+        uses: ./.github/actions/setup-android-sdk
+
+      - name: Decode Android signing keystore (optional)
+        if: secrets.ANDROID_KEYSTORE_BASE64 != ''
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.keystore"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+
+      - name: Assemble Android release APK
+        env:
+          CI_BUILD_NUMBER: ${{ github.run_number }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          ./gradlew :androidApp:assembleRelease -PVERSION_NAME="${{ needs.resolve-tag.outputs.version }}"
+          mkdir -p dist
+          APK_FILE="$(ls androidApp/build/outputs/apk/release/*.apk | head -n 1)"
+          cp "$APK_FILE" "dist/KiraKitGallery-${{ needs.resolve-tag.outputs.version }}-android.apk"
+
+      - name: Upload Android APK artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-android
+          path: dist/*.apk
+
+  build-desktop:
+    name: Build Desktop Gallery (${{ matrix.label }})
+    needs: resolve-tag
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-26
+            label: macOS arm64
+            task: :gallery:packageReleaseDmg
+            search_dir: gallery/build/compose/binaries/main-release/dmg
+            ext: dmg
+            suffix: macos-arm64
+          - os: windows-2025
+            label: Windows x64
+            task: :gallery:packageReleaseMsi
+            search_dir: gallery/build/compose/binaries/main-release/msi
+            ext: msi
+            suffix: windows-x64
+          - os: ubuntu-24.04
+            label: Linux x64
+            task: :gallery:packageReleaseDeb
+            search_dir: gallery/build/compose/binaries/main-release/deb
+            ext: deb
+            suffix: linux-x64
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve-tag.outputs.tag }}
+
+      - name: Setup JDK, Android SDK, and Gradle
+        uses: ./.github/actions/setup-android-sdk
+        with:
+          setup-android: 'false'
+
+      - name: Package native release installer
+        run: ./gradlew ${{ matrix.task }} -PVERSION_NAME="${{ needs.resolve-tag.outputs.version }}"
+
+      - name: Normalize installer filename
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          INSTALLER="$(find "${{ matrix.search_dir }}" -maxdepth 1 -type f -name "*.${{ matrix.ext }}" | head -n 1)"
+          if [ -z "$INSTALLER" ]; then
+            echo "Installer not found in ${{ matrix.search_dir }}" >&2
+            exit 1
+          fi
+          cp "$INSTALLER" "dist/KiraKitGallery-${{ needs.resolve-tag.outputs.version }}-${{ matrix.suffix }}.${{ matrix.ext }}"
+
+      - name: Upload desktop installer artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-${{ matrix.suffix }}
+          path: dist/*
+
+  finalize-release:
+    name: Attest & Publish GitHub Release Assets
+    needs: [resolve-tag, publish-libraries, build-android, build-desktop]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download all release binaries
+        uses: actions/download-artifact@v8
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: release-assets
+
+      - name: Generate SHA256SUMS.txt
+        working-directory: release-assets
+        run: |
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Generate SLSA build provenance attestations
+        uses: actions/attest@v4
+        with:
+          subject-path: release-assets/*
+
+      - name: Ensure GitHub Release exists and upload assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.resolve-tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if ! gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release create "$TAG" \
+              --repo "${{ github.repository }}" \
+              --title "$TAG" \
+              --generate-notes
+          fi
+          gh release upload "$TAG" release-assets/* \
+            --repo "${{ github.repository }}" \
+            --clobber

@@ -1,0 +1,32 @@
+# Gradle
+.gradle/
+build/
+**/build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Android / Local
+local.properties
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# Kotlin / Native / iOS
+.kotlin/
+kotlin-js-store/
+iosApp/Pods/
+iosApp/*.xcworkspace/xcuserdata/
+iosApp/*.xcodeproj/xcuserdata/
+iosApp/DerivedData/
+
+# CI local staging
+_gh-pages/
+dist/

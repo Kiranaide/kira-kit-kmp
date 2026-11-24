@@ -5,7 +5,7 @@ agp = "9.5.0"
 composeMultiplatform = "1.12.2"
 composeUnstyled = "2.10.2"
 androidx-activityCompose = "1.13.0"
-kotlinx-coroutines = "1.10.2"
+kotlinx-coroutines = "1.11.0"
 vanniktechMavenPublish = "0.37.0"
 filekit = "0.17.1"
 

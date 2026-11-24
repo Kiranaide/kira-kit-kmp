@@ -1,6 +1,6 @@
 ﻿# Kira Kit KMP
 
-Kira Kit V2's design tokens and UI components for Kotlin Multiplatform. The same Compose gallery runs on Android, iOS, and JVM desktop.
+Kira Kit design tokens and UI components for Kotlin Multiplatform. The same Compose gallery runs on Android, iOS, and JVM desktop.
 
 | Module | What goes there |
 | --- | --- |

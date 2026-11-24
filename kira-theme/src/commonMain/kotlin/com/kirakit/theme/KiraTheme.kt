@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
@@ -64,10 +65,13 @@ data class KiraRadiusScale(
     val xxxl: Dp,
     val xxxxl: Dp,
 ) {
-    val shapeSm get() = RoundedCornerShape(sm)
-    val shapeMd get() = RoundedCornerShape(md)
-    val shapeLg get() = RoundedCornerShape(lg)
-    val shapeXl get() = RoundedCornerShape(xl)
+    val shapeSm: RoundedCornerShape = RoundedCornerShape(sm)
+    val shapeMd: RoundedCornerShape = RoundedCornerShape(md)
+    val shapeLg: RoundedCornerShape = RoundedCornerShape(lg)
+    val shapeXl: RoundedCornerShape = RoundedCornerShape(xl)
+    val shapeXxl: RoundedCornerShape = RoundedCornerShape(xxl)
+    val shapeXxxl: RoundedCornerShape = RoundedCornerShape(xxxl)
+    val shapeXxxxl: RoundedCornerShape = RoundedCornerShape(xxxxl)
 }
 
 @Immutable
@@ -1122,10 +1126,14 @@ val LocalKiraRadius = staticCompositionLocalOf { KiraThemes.Default.radius }
 
 object KiraTheme {
     val colors: KiraColorScheme
-        @Composable get() = LocalKiraColors.current
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalKiraColors.current
 
     val radius: KiraRadiusScale
-        @Composable get() = LocalKiraRadius.current
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalKiraRadius.current
 }
 
 @Composable

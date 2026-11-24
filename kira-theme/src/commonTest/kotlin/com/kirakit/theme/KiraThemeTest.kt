@@ -2,6 +2,7 @@ package com.kirakit.theme
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class KiraThemeTest {
@@ -28,5 +29,25 @@ class KiraThemeTest {
         assertEquals(10f, KiraRadiusPresets.Balanced.scale.lg.value)
         assertEquals(14f, KiraRadiusPresets.Balanced.scale.xl.value)
         assertEquals(20f, KiraRadiusPresets.Pill.scale.lg.value)
+    }
+
+    @Test
+    fun radiusShapesAreCachedWithoutPerAccessAllocation() {
+        val scale = KiraThemes.Default.radius
+        assertSame(scale.shapeSm, scale.shapeSm)
+        assertSame(scale.shapeMd, scale.shapeMd)
+        assertSame(scale.shapeLg, scale.shapeLg)
+        assertSame(scale.shapeXl, scale.shapeXl)
+        assertSame(scale.shapeXxl, scale.shapeXxl)
+        assertSame(scale.shapeXxxl, scale.shapeXxxl)
+        assertSame(scale.shapeXxxxl, scale.shapeXxxxl)
+        assertSame(scale.shapeFull, scale.shapeFull)
+    }
+
+    @Test
+    fun motionSpecsAreCachedSingletons() {
+        assertSame(KiraMotion.fastTween<Float>(), KiraMotion.fastTween<Float>())
+        assertSame(KiraMotion.standardTween<Float>(), KiraMotion.standardTween<Float>())
+        assertSame(KiraMotion.bouncySpring<Float>(), KiraMotion.bouncySpring<Float>())
     }
 }

@@ -10,6 +10,9 @@ import androidx.compose.animation.core.tween
 
 /**
  * Motion tokens aligned with `tokens/kira-tokens.json` exported from kira-kit-v2.
+ *
+ * Spec instances are pre-allocated as immutable singletons to avoid per-recomposition
+ * allocations across Android ART and Kotlin/Native (iOS).
  */
 object KiraMotion {
     val EaseOutStrong: Easing = CubicBezierEasing(0.23f, 1f, 0.32f, 1f)
@@ -23,18 +26,27 @@ object KiraMotion {
     const val PingOnceMs: Int = 800
     const val ShimmerMs: Int = 2000
 
-    fun <T> fastTween(): TweenSpec<T> = tween(
+    private val cachedFastTween: TweenSpec<Any> = tween(
         durationMillis = RouteFadeMs,
         easing = EaseOutStrong,
     )
 
-    fun <T> standardTween(): TweenSpec<T> = tween(
+    private val cachedStandardTween: TweenSpec<Any> = tween(
         durationMillis = RouteTransitionMs,
         easing = EaseOutStrong,
     )
 
-    fun <T> bouncySpring(): SpringSpec<T> = spring(
+    private val cachedBouncySpring: SpringSpec<Any> = spring(
         dampingRatio = SpringDampingRatio,
         stiffness = Spring.StiffnessMediumLow,
     )
+
+    @Suppress("UNCHECKED_CAST")
+    fun <T> fastTween(): TweenSpec<T> = cachedFastTween as TweenSpec<T>
+
+    @Suppress("UNCHECKED_CAST")
+    fun <T> standardTween(): TweenSpec<T> = cachedStandardTween as TweenSpec<T>
+
+    @Suppress("UNCHECKED_CAST")
+    fun <T> bouncySpring(): SpringSpec<T> = cachedBouncySpring as SpringSpec<T>
 }

@@ -2,6 +2,7 @@ package com.kirakit.theme
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -21,4 +22,6 @@ data class KiraSpacing(
 val LocalKiraSpacing = staticCompositionLocalOf { KiraSpacing() }
 
 val KiraTheme.spacing: KiraSpacing
-    @Composable get() = LocalKiraSpacing.current
+    @Composable
+    @ReadOnlyComposable
+    get() = LocalKiraSpacing.current

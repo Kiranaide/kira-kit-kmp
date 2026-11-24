@@ -55,9 +55,9 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.MotionDurationScale
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -216,22 +216,27 @@ fun KiraButton(
     shape: Shape? = null,
     content: @Composable RowScope.(TextStyle) -> Unit,
 ) {
-    var committedPressed by rememberSaveable { mutableStateOf(defaultPressed) }
-    var pendingPressed by remember { mutableStateOf<Boolean?>(null) }
-    var toggleError by remember { mutableStateOf<String?>(null) }
-    val scope = rememberCoroutineScope()
-    val displayedPressed = pendingPressed ?: pressed ?: committedPressed
+    val committedPressedState = if (toggle) rememberSaveable { mutableStateOf(defaultPressed) } else null
+    val pendingPressedState = if (toggle) remember { mutableStateOf<Boolean?>(null) } else null
+    val toggleErrorState = if (toggle) remember { mutableStateOf<String?>(null) } else null
+    val scope = if (toggle) rememberCoroutineScope() else null
+    val displayedPressed = if (toggle) {
+        pendingPressedState?.value ?: pressed ?: committedPressedState?.value ?: defaultPressed
+    } else {
+        false
+    }
     val interactive = enabled && !loading
     val hovered by interactionSource.collectIsHoveredAsState()
     val focused by interactionSource.collectIsFocusedAsState()
     val pressing by interactionSource.collectIsPressedAsState()
-    val palette = variant.palette(KiraTheme.colors)
+    val colors = KiraTheme.colors
+    val palette = remember(variant, colors) { variant.palette(colors) }
     val resolvedShape = shape ?: KiraTheme.radius.shapeLg
-    val shape = resolvedShape
-    val ring = KiraTheme.colors.ring
-    var targetSize by remember { mutableStateOf(IntSize.Zero) }
+    val ring = colors.ring
+    // Non-state ref avoids triggering a redundant recomposition on every button's first layout pass.
+    val targetSizeRef = remember { IntSizeRef() }
 
-    val background by animateColorAsState(
+    val backgroundState = animateColorAsState(
         targetValue = when {
             interactive && pressing -> palette.active
             interactive && hovered -> palette.hover
@@ -240,7 +245,7 @@ fun KiraButton(
         animationSpec = KiraMotion.fastTween(),
         label = "Button background",
     )
-    val scale by animateFloatAsState(
+    val scaleState = animateFloatAsState(
         targetValue = if (interactive && pressing) 0.96f else 1f,
         animationSpec = KiraMotion.fastTween(),
         label = "Button press",
@@ -253,41 +258,45 @@ fun KiraButton(
         else -> leftIcon
     }
     val effectiveRightIcon = rightIcon.takeUnless { loading }
-    val style = size.textStyle().copy(
-        color = palette.foreground,
-        textDecoration = if (variant == KiraButtonVariant.Link && (hovered || focused)) {
-            TextDecoration.Underline
-        } else {
-            TextDecoration.None
-        },
-    )
+    val baseTextStyle = size.textStyle()
+    val underline = variant == KiraButtonVariant.Link && (hovered || focused)
+    val style = remember(baseTextStyle, palette.foreground, underline) {
+        baseTextStyle.copy(
+            color = palette.foreground,
+            textDecoration = if (underline) TextDecoration.Underline else TextDecoration.None,
+        )
+    }
 
     val activate: () -> Unit = {
-        if (interactive && pendingPressed == null) {
-            if (toggle) {
+        if (interactive && pendingPressedState?.value == null) {
+            if (toggle && pendingPressedState != null && toggleErrorState != null && committedPressedState != null && scope != null) {
                 val next = !displayedPressed
                 val controlled = pressed != null
-                toggleError = null
-                pendingPressed = next
+                toggleErrorState.value = null
+                pendingPressedState.value = next
                 scope.launch {
                     try {
                         onToggle?.invoke(next)
-                        if (!controlled) committedPressed = next
+                        if (!controlled) committedPressedState.value = next
                     } catch (cancelled: CancellationException) {
                         throw cancelled
                     } catch (_: Exception) {
-                        toggleError = toggleErrorMessage
+                        toggleErrorState.value = toggleErrorMessage
                     } finally {
-                        pendingPressed = null
+                        pendingPressedState.value = null
                     }
                 }
             }
             onClick()
         }
     }
-    val hold = rememberButtonHold(interactive, holdDurationMillis, onHoldComplete, interactionSource)
+    val hold = if (onHoldComplete != null) {
+        rememberButtonHold(interactive, holdDurationMillis, onHoldComplete, interactionSource)
+    } else {
+        null
+    }
     val activationModifier = when {
-        onHoldComplete != null -> hold.modifier
+        hold != null -> hold.modifier
         interactive -> Modifier.clickable(
             interactionSource = interactionSource,
             indication = null,
@@ -309,16 +318,22 @@ fun KiraButton(
         modifier = modifier
             .then(if (fullWidth) Modifier.fillMaxWidth() else Modifier)
             .defaultMinSize(minWidth = 44.dp, minHeight = size.minHeight)
-            .semantics {
-                if (toggle) selected = displayedPressed
-                if (loading) {
-                    stateDescription = loadingText ?: "Loading"
-                    progressBarRangeInfo = ProgressBarRangeInfo.Indeterminate
-                }
-            }
+            .then(
+                if (toggle || loading) {
+                    Modifier.semantics {
+                        if (toggle) selected = displayedPressed
+                        if (loading) {
+                            stateDescription = loadingText ?: "Loading"
+                            progressBarRangeInfo = ProgressBarRangeInfo.Indeterminate
+                        }
+                    }
+                } else {
+                    Modifier
+                },
+            )
             .then(activationModifier)
             .then(focusModifier)
-            .onSizeChanged { targetSize = it },
+            .onSizeChanged { targetSizeRef.value = it },
         contentAlignment = Alignment.Center,
         propagateMinConstraints = true,
     ) {
@@ -332,30 +347,40 @@ fun KiraButton(
                 .wrapContentHeight()
                 .defaultMinSize(minHeight = size.visualHeight)
                 .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
+                    val s = scaleState.value
+                    scaleX = s
+                    scaleY = s
+                    if (!interactive) alpha = 0.5f
                 }
-                .clip(shape)
-                .then(if (focused) Modifier.border(2.dp, ring, shape) else Modifier)
-                .alpha(if (interactive) 1f else 0.5f)
-                .background(background)
-                .then(if (!focused && palette.border != Color.Transparent) Modifier.border(1.dp, palette.border, shape) else Modifier)
-                .buttonRipple(interactionSource, palette.foreground) { targetSize }
+                .clip(resolvedShape)
+                .then(if (focused) Modifier.border(2.dp, ring, resolvedShape) else Modifier)
                 .drawBehind {
-                    val progress = hold.progress
-                    if (progress > 0f) {
-                        drawRect(
-                            color = palette.foreground,
-                            alpha = 0.5f,
-                            size = this.size.copy(width = this.size.width * progress),
-                            topLeft = if (layoutDirection == LayoutDirection.Rtl) {
-                                Offset(this.size.width * (1f - progress), 0f)
-                            } else {
-                                Offset.Zero
-                            },
-                        )
-                    }
+                    val bg = backgroundState.value
+                    if (bg.alpha > 0f) drawRect(bg)
                 }
+                .then(if (!focused && palette.border != Color.Transparent) Modifier.border(1.dp, palette.border, resolvedShape) else Modifier)
+                .buttonRipple(interactionSource, palette.foreground) { targetSizeRef.value }
+                .then(
+                    if (hold != null) {
+                        Modifier.drawBehind {
+                            val progress = hold.progress
+                            if (progress > 0f) {
+                                drawRect(
+                                    color = palette.foreground,
+                                    alpha = 0.5f,
+                                    size = this.size.copy(width = this.size.width * progress),
+                                    topLeft = if (layoutDirection == LayoutDirection.Rtl) {
+                                        Offset(this.size.width * (1f - progress), 0f)
+                                    } else {
+                                        Offset.Zero
+                                    },
+                                )
+                            }
+                        }
+                    } else {
+                        Modifier
+                    },
+                )
                 .padding(size.padding(loading || effectiveLeftIcon != null || effectiveRightIcon != null)),
             horizontalArrangement = Arrangement.spacedBy(size.gap, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically,
@@ -370,22 +395,22 @@ fun KiraButton(
             effectiveRightIcon?.invoke(palette.foreground, size.iconSize)
         }
 
-        toggleError?.let { message ->
+        toggleErrorState?.value?.let { message ->
             LaunchedEffect(message) {
                 delay(3_500)
-                toggleError = null
+                toggleErrorState.value = null
             }
             val gap = with(LocalDensity.current) { 6.dp.roundToPx() }
             Popup(popupPositionProvider = ButtonMessagePosition(gap)) {
-                val colors = KiraTheme.colors
+                val popupColors = KiraTheme.colors
                 BasicText(
                     text = message,
                     modifier = Modifier
-                        .background(colors.popover, shape)
-                        .border(1.dp, colors.destructive, shape)
+                        .background(popupColors.popover, resolvedShape)
+                        .border(1.dp, popupColors.destructive, resolvedShape)
                         .padding(horizontal = 12.dp, vertical = 8.dp)
                         .semantics { liveRegion = LiveRegionMode.Assertive },
-                    style = KiraTheme.typography.bodySmall.copy(color = colors.popoverForeground),
+                    style = KiraTheme.typography.bodySmall.copy(color = popupColors.popoverForeground),
                 )
             }
         }
@@ -839,29 +864,44 @@ private fun Modifier.buttonRipple(
     }
 }
 
+private class IntSizeRef {
+    var value: IntSize = IntSize.Zero
+}
+
 @Composable
 private fun ButtonSpinner(color: Color, size: Dp) {
     val transition = rememberInfiniteTransition(label = "Button loading")
-    val rotation by transition.animateFloat(
+    val rotationState = transition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(tween(1_000, easing = LinearEasing)),
         label = "Spinner rotation",
     )
-    Canvas(Modifier.size(size)) {
-        val stroke = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
-        drawCircle(color, radius = this.size.minDimension / 2f - stroke.width / 2f, alpha = 0.25f, style = stroke)
-        val inset = stroke.width / 2f
-        drawArc(
-            color = color,
-            startAngle = rotation - 90f,
-            sweepAngle = 95f,
-            useCenter = false,
-            topLeft = Offset(inset, inset),
-            size = Size(this.size.width - stroke.width, this.size.height - stroke.width),
-            style = stroke,
-        )
-    }
+    Box(
+        Modifier
+            .size(size)
+            .clearAndSetSemantics {}
+            .drawWithCache {
+                val strokeWidth = 2.dp.toPx()
+                val stroke = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                val radius = this.size.minDimension / 2f - strokeWidth / 2f
+                val inset = strokeWidth / 2f
+                val topLeft = Offset(inset, inset)
+                val arcSize = Size(this.size.width - strokeWidth, this.size.height - strokeWidth)
+                onDrawBehind {
+                    drawCircle(color, radius = radius, alpha = 0.25f, style = stroke)
+                    drawArc(
+                        color = color,
+                        startAngle = rotationState.value - 90f,
+                        sweepAngle = 95f,
+                        useCenter = false,
+                        topLeft = topLeft,
+                        size = arcSize,
+                        style = stroke,
+                    )
+                }
+            },
+    )
 }
 
 private class ButtonMessagePosition(private val gap: Int) : PopupPositionProvider {

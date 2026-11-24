@@ -50,6 +50,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.MotionDurationScale
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
@@ -62,6 +64,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.key.Key
@@ -302,29 +305,29 @@ fun KiraBadge(
             colors.muted
         else -> baseBackground
     }
-    val animatedBg by animateColorAsState(
+    val animatedBgState = animateColorAsState(
         targetValue = targetBg,
         animationSpec = KiraMotion.fastTween(),
         label = "Badge background",
     )
 
     val hoverOpacity = if (isClickable && hovered) 0.90f else 1f
-    val pressScale by animateFloatAsState(
+    val pressScaleState = animateFloatAsState(
         targetValue = when {
             isClosing -> 0.95f
             isClickable && isPressed -> 0.95f
             else -> 1f
         },
-        animationSpec = tween(durationMillis = KiraMotion.RouteFadeMs),
+        animationSpec = KiraMotion.fastTween(),
         label = "Badge scale",
     )
-    val contentAlpha by animateFloatAsState(
+    val contentAlphaState = animateFloatAsState(
         targetValue = when {
             isClosing -> 0f
             !enabled -> 0.50f
             else -> hoverOpacity
         },
-        animationSpec = tween(durationMillis = KiraMotion.RouteFadeMs),
+        animationSpec = KiraMotion.fastTween(),
         label = "Badge alpha",
     )
 
@@ -346,17 +349,7 @@ fun KiraBadge(
         else -> Modifier
     }
 
-    val isSoftOrLight = resolvedVariant in setOf(
-        KiraBadgeVariant.Ghost,
-        KiraBadgeVariant.Outline,
-        KiraBadgeVariant.Link,
-        KiraBadgeVariant.PrimarySoft,
-        KiraBadgeVariant.SecondarySoft,
-        KiraBadgeVariant.DestructiveSoft,
-        KiraBadgeVariant.SuccessSoft,
-        KiraBadgeVariant.WarningSoft,
-        KiraBadgeVariant.InfoSoft,
-    )
+    val isSoftOrLight = resolvedVariant in SoftOrLightBadgeVariants
     val shimmerTint = if (isSoftOrLight) {
         colors.foreground.copy(alpha = 0.15f)
     } else {
@@ -432,13 +425,17 @@ fun KiraBadge(
     Row(
         modifier = modifier
             .graphicsLayer {
-                scaleX = pressScale
-                scaleY = pressScale
-                alpha = contentAlpha
+                val s = pressScaleState.value
+                scaleX = s
+                scaleY = s
+                alpha = contentAlphaState.value
             }
             .height(size.height)
             .clip(shape)
-            .background(animatedBg)
+            .drawBehind {
+                val bg = animatedBgState.value
+                if (bg.alpha > 0f) drawRect(bg)
+            }
             .then(borderModifier)
             .badgeShimmer(enabled = shimmer, tint = shimmerTint)
             .then(interactiveModifier)
@@ -460,6 +457,18 @@ fun KiraBadge(
         rowContent()
     }
 }
+
+private val SoftOrLightBadgeVariants = setOf(
+    KiraBadgeVariant.Ghost,
+    KiraBadgeVariant.Outline,
+    KiraBadgeVariant.Link,
+    KiraBadgeVariant.PrimarySoft,
+    KiraBadgeVariant.SecondarySoft,
+    KiraBadgeVariant.DestructiveSoft,
+    KiraBadgeVariant.SuccessSoft,
+    KiraBadgeVariant.WarningSoft,
+    KiraBadgeVariant.InfoSoft,
+)
 
 /**
  * Unified prop-driven KiraBadge covering `badge`, `status`, `count`, `tag`, and `dot` modes,
@@ -640,11 +649,11 @@ private fun BadgeDotIndicator(
     size: KiraBadgeSize,
 ) {
     val diameter = size.dotSize
-    val pingProgress: Float = when (pulse) {
-        KiraBadgePulse.None -> 1f
+    val pingProgressProvider: () -> Float = when (pulse) {
+        KiraBadgePulse.None -> ({ 1f })
         KiraBadgePulse.Continuous -> {
             val transition = rememberInfiniteTransition(label = "Badge dot ping")
-            val value by transition.animateFloat(
+            val state = transition.animateFloat(
                 initialValue = 0f,
                 targetValue = 1f,
                 animationSpec = infiniteRepeatable(
@@ -653,7 +662,7 @@ private fun BadgeDotIndicator(
                 ),
                 label = "Dot ping progress",
             )
-            value
+            ({ state.value })
         }
         KiraBadgePulse.Once -> {
             val anim = remember { Animatable(0f) }
@@ -663,7 +672,7 @@ private fun BadgeDotIndicator(
                     animationSpec = tween(durationMillis = KiraMotion.PingOnceMs, easing = LinearEasing),
                 )
             }
-            anim.value
+            ({ anim.value })
         }
     }
 
@@ -673,6 +682,7 @@ private fun BadgeDotIndicator(
             .clearAndSetSemantics {},
     ) {
         val baseRadius = this.size.minDimension / 2f
+        val pingProgress = pingProgressProvider()
         if (pulse != KiraBadgePulse.None && pingProgress < 1f) {
             // Tailwind ping keyframes: 0% -> 75% expands scale 1 -> 2 and fades opacity -> 0; 75% -> 100% holds at 0.
             val t = (pingProgress / 0.75f).coerceIn(0f, 1f)
@@ -681,7 +691,8 @@ private fun BadgeDotIndicator(
             val ringAlpha = (1f - t) * 0.85f
             if (ringAlpha > 0.01f) {
                 drawCircle(
-                    color = color.copy(alpha = ringAlpha),
+                    color = color,
+                    alpha = ringAlpha,
                     radius = ringRadius,
                     center = center,
                 )
@@ -743,36 +754,42 @@ private fun BadgeTrendIcon(
 @Composable
 private fun BadgeSpinner(color: Color, size: Dp) {
     val transition = rememberInfiniteTransition(label = "Badge spinner")
-    val rotation by transition.animateFloat(
+    val rotationState = transition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(tween(durationMillis = 900, easing = LinearEasing)),
         label = "Badge spinner rotation",
     )
-    Canvas(
+    Box(
         Modifier
             .size(size)
-            .clearAndSetSemantics {},
-    ) {
-        val strokeWidth = (this.size.minDimension * 0.15f).coerceAtLeast(1.4.dp.toPx())
-        val stroke = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-        drawCircle(
-            color = color,
-            radius = this.size.minDimension / 2f - strokeWidth / 2f,
-            alpha = 0.25f,
-            style = stroke,
-        )
-        val inset = strokeWidth / 2f
-        drawArc(
-            color = color,
-            startAngle = rotation - 90f,
-            sweepAngle = 100f,
-            useCenter = false,
-            topLeft = Offset(inset, inset),
-            size = Size(this.size.width - strokeWidth, this.size.height - strokeWidth),
-            style = stroke,
-        )
-    }
+            .clearAndSetSemantics {}
+            .drawWithCache {
+                val strokeWidth = (this.size.minDimension * 0.15f).coerceAtLeast(1.4.dp.toPx())
+                val stroke = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                val radius = this.size.minDimension / 2f - strokeWidth / 2f
+                val inset = strokeWidth / 2f
+                val topLeft = Offset(inset, inset)
+                val arcSize = Size(this.size.width - strokeWidth, this.size.height - strokeWidth)
+                onDrawBehind {
+                    drawCircle(
+                        color = color,
+                        radius = radius,
+                        alpha = 0.25f,
+                        style = stroke,
+                    )
+                    drawArc(
+                        color = color,
+                        startAngle = rotationState.value - 90f,
+                        sweepAngle = 100f,
+                        useCenter = false,
+                        topLeft = topLeft,
+                        size = arcSize,
+                        style = stroke,
+                    )
+                }
+            },
+    )
 }
 
 @Composable
@@ -787,7 +804,7 @@ private fun BadgeCloseButton(
     val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsHoveredAsState()
     val focused by interactionSource.collectIsFocusedAsState()
-    val alpha by animateFloatAsState(
+    val alphaState = animateFloatAsState(
         targetValue = if (hovered || focused) 1f else 0.70f,
         animationSpec = KiraMotion.fastTween(),
         label = "Close alpha",
@@ -807,31 +824,26 @@ private fun BadgeCloseButton(
                 onClick = onClick,
             )
             .semantics { contentDescription = label }
-            .alpha(alpha),
+            .graphicsLayer { alpha = alphaState.value },
         contentAlignment = Alignment.Center,
     ) {
-        Canvas(
+        Box(
             Modifier
                 .size(size.closeIconSize)
-                .clearAndSetSemantics {},
-        ) {
-            val strokeWidth = (this.size.minDimension * 0.18f).coerceAtLeast(1.25.dp.toPx())
-            val inset = strokeWidth
-            drawLine(
-                color = color,
-                start = Offset(inset, inset),
-                end = Offset(this.size.width - inset, this.size.height - inset),
-                strokeWidth = strokeWidth,
-                cap = StrokeCap.Round,
-            )
-            drawLine(
-                color = color,
-                start = Offset(this.size.width - inset, inset),
-                end = Offset(inset, this.size.height - inset),
-                strokeWidth = strokeWidth,
-                cap = StrokeCap.Round,
-            )
-        }
+                .clearAndSetSemantics {}
+                .drawWithCache {
+                    val strokeWidth = (this.size.minDimension * 0.18f).coerceAtLeast(1.25.dp.toPx())
+                    val inset = strokeWidth
+                    val tl = Offset(inset, inset)
+                    val br = Offset(this.size.width - inset, this.size.height - inset)
+                    val tr = Offset(this.size.width - inset, inset)
+                    val bl = Offset(inset, this.size.height - inset)
+                    onDrawBehind {
+                        drawLine(color = color, start = tl, end = br, strokeWidth = strokeWidth, cap = StrokeCap.Round)
+                        drawLine(color = color, start = tr, end = bl, strokeWidth = strokeWidth, cap = StrokeCap.Round)
+                    }
+                },
+        )
     }
 }
 
@@ -839,23 +851,27 @@ private fun BadgeCloseButton(
 private fun Modifier.badgeShimmer(enabled: Boolean, tint: Color): Modifier {
     if (!enabled) return this
     val transition = rememberInfiniteTransition(label = "Badge shimmer")
-    val phase by transition.animateFloat(
+    val phaseState = transition.animateFloat(
         initialValue = -1f,
         targetValue = 2f,
         animationSpec = infiniteRepeatable(tween(durationMillis = KiraMotion.ShimmerMs, easing = LinearEasing)),
         label = "Shimmer phase",
     )
-    return drawWithContent {
-        drawContent()
-        val stripe = size.width * phase
-        drawRect(
-            brush = Brush.linearGradient(
-                colors = listOf(Color.Transparent, tint, Color.Transparent),
-                start = Offset(stripe - size.width * 0.5f, 0f),
-                end = Offset(stripe + size.width * 0.5f, size.height),
-            ),
-            size = Size(size.width, size.height),
+    return drawWithCache {
+        val bandWidth = size.width.coerceAtLeast(1f)
+        val brush = Brush.linearGradient(
+            colors = listOf(Color.Transparent, tint, Color.Transparent),
+            start = Offset(0f, 0f),
+            end = Offset(bandWidth, size.height.coerceAtLeast(1f)),
         )
+        val bandSize = Size(bandWidth, size.height)
+        onDrawWithContent {
+            drawContent()
+            val left = size.width * phaseState.value - bandWidth * 0.5f
+            withTransform({ translate(left = left) }) {
+                drawRect(brush = brush, size = bandSize)
+            }
+        }
     }
 }
 
@@ -938,11 +954,9 @@ fun KiraCountBadge(
     val displayText = formatBadgeCount(displayedCount, format, max)
 
     val showPulse = pulse && count > 0
-    val pulseScale: Float
-    val pulseAlpha: Float
-    if (showPulse) {
+    val pulseState = if (showPulse) {
         val transition = rememberInfiniteTransition(label = "Count badge pulse")
-        val p by transition.animateFloat(
+        transition.animateFloat(
             initialValue = 0f,
             targetValue = 1f,
             animationSpec = infiniteRepeatable(
@@ -951,11 +965,8 @@ fun KiraCountBadge(
             ),
             label = "Count pulse",
         )
-        pulseScale = 1f + p * 0.08f
-        pulseAlpha = 1f - p * 0.15f
     } else {
-        pulseScale = 1f
-        pulseAlpha = 1f
+        null
     }
 
     val minWidth = when (size) {
@@ -982,11 +993,19 @@ fun KiraCountBadge(
 
     Row(
         modifier = modifier
-            .graphicsLayer {
-                scaleX = pulseScale
-                scaleY = pulseScale
-                alpha = pulseAlpha
-            }
+            .then(
+                if (pulseState != null) {
+                    Modifier.graphicsLayer {
+                        val p = pulseState.value
+                        val s = 1f + p * 0.08f
+                        scaleX = s
+                        scaleY = s
+                        alpha = 1f - p * 0.15f
+                    }
+                } else {
+                    Modifier
+                },
+            )
             .height(size.height)
             .defaultMinSize(minWidth = minWidth)
             .clip(shape)

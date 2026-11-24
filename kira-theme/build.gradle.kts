@@ -18,6 +18,11 @@ kotlin {
         compileSdk = libs.versions.android.compileSdk.get().toInt()
         minSdk = libs.versions.android.minSdk.get().toInt()
 
+        optimization {
+            consumerKeepRules.publish = true
+            consumerKeepRules.file(file("consumer-rules.pro"))
+        }
+
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_17)
         }
@@ -44,6 +49,15 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
         }
+    }
+}
+
+composeCompiler {
+    stabilityConfigurationFiles.add(rootProject.layout.projectDirectory.file("compose-stability.conf"))
+    if (providers.gradleProperty("composeCompilerReports").orNull == "true") {
+        val reportsDir = layout.buildDirectory.dir("compose_compiler")
+        reportsDestination.set(reportsDir)
+        metricsDestination.set(reportsDir)
     }
 }
 

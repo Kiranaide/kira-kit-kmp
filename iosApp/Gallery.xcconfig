@@ -8,7 +8,7 @@ INFOPLIST_KEY_CFBundleDisplayName = Kira Kit
 INFOPLIST_KEY_UILaunchScreen_Generation = YES
 IPHONEOS_DEPLOYMENT_TARGET = 16.0
 // x-release-please-start-version
-MARKETING_VERSION = 0.1.0
+MARKETING_VERSION = 0.2.0
 // x-release-please-end
 OTHER_LDFLAGS = $(inherited) -framework KiraGallery
 PRODUCT_BUNDLE_IDENTIFIER = com.kirakit.gallery

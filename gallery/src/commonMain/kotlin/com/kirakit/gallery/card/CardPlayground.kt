@@ -15,6 +15,7 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -90,13 +91,15 @@ internal fun CardPlayground() {
         }
 
         SectionHeading("Glass")
-        val glassBackdrop = Brush.linearGradient(
-            listOf(
-                colors.primary.copy(alpha = 0.22f),
-                colors.secondary.copy(alpha = 0.22f),
-                colors.primary.copy(alpha = 0.10f),
-            ),
-        )
+        val glassBackdrop = remember(colors.primary, colors.secondary) {
+            Brush.linearGradient(
+                listOf(
+                    colors.primary.copy(alpha = 0.22f),
+                    colors.secondary.copy(alpha = 0.22f),
+                    colors.primary.copy(alpha = 0.10f),
+                ),
+            )
+        }
         Box(
             modifier = Modifier
                 .fillMaxWidth()

@@ -2,6 +2,7 @@ package com.kirakit.theme
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -72,4 +73,6 @@ data class KiraTypography(
 val LocalKiraTypography = staticCompositionLocalOf { KiraTypography() }
 
 val KiraTheme.typography: KiraTypography
-    @Composable get() = LocalKiraTypography.current
+    @Composable
+    @ReadOnlyComposable
+    get() = LocalKiraTypography.current

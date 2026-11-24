@@ -53,7 +53,16 @@ kotlin {
     }
 }
 
-val rawVersion = providers.gradleProperty("VERSION_NAME").getOrElse("0.1.0")
+composeCompiler {
+    stabilityConfigurationFiles.add(rootProject.layout.projectDirectory.file("compose-stability.conf"))
+    if (providers.gradleProperty("composeCompilerReports").orNull == "true") {
+        val reportsDir = layout.buildDirectory.dir("compose_compiler")
+        reportsDestination.set(reportsDir)
+        metricsDestination.set(reportsDir)
+    }
+}
+
+val rawVersion = providers.gradleProperty("VERSION_NAME").getOrElse("0.2.0")
 val coreVersion = rawVersion.substringBefore('-')
 val versionParts = coreVersion.split('.').mapNotNull { it.toIntOrNull() }
 // jpackage requires numeric MAJOR.MINOR.PATCH with MAJOR >= 1 for macOS DMG and Windows MSI.

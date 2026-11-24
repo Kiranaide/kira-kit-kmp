@@ -72,6 +72,8 @@ import com.kirakit.components.input.KiraSearchInput
 import com.kirakit.gallery.ExampleNote
 import com.kirakit.gallery.GalleryExample
 import com.kirakit.theme.KiraTheme
+import androidx.compose.foundation.lazy.LazyListScope
+import com.kirakit.gallery.galleryItem
 import com.kirakit.theme.spacing
 import com.kirakit.theme.typography
 import io.github.vinceglb.filekit.dialogs.FileKitMode
@@ -81,6 +83,22 @@ import io.github.vinceglb.filekit.name
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+internal fun LazyListScope.inputPlaygroundItems() {
+    galleryItem("input-basic") { BasicSection() }
+    galleryItem("input-file") { FileSection() }
+    galleryItem("input-numeric") { NumericSection() }
+    galleryItem("input-formatted") { FormattedSection() }
+    galleryItem("input-prefix-suffix") { PrefixSuffixSection() }
+    galleryItem("input-composites") { CompositesSection() }
+    galleryItem("input-search-actions") { SearchActionsSection() }
+    galleryItem("input-otp") { OtpSection() }
+    galleryItem("input-rating") { RatingSection() }
+    galleryItem("input-password") { PasswordSection() }
+    galleryItem("input-counter") { CounterSection() }
+    galleryItem("input-tags") { TagsSection() }
+    galleryItem("input-showcase") { ShowcaseSection() }
+}
 
 @Composable
 internal fun InputPlayground() {

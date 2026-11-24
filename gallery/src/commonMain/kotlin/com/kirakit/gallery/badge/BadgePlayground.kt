@@ -52,8 +52,12 @@ import com.kirakit.components.badge.KiraTagInput
 import com.kirakit.components.button.KiraButton
 import com.kirakit.components.button.KiraButtonSize
 import com.kirakit.components.button.KiraButtonVariant
+import androidx.compose.foundation.lazy.LazyListScope
 import com.kirakit.gallery.ExampleNote
 import com.kirakit.gallery.GalleryExample
+import com.kirakit.gallery.SectionHeading
+import com.kirakit.gallery.galleryHeading
+import com.kirakit.gallery.galleryItem
 import com.kirakit.theme.KiraTheme
 import com.kirakit.theme.spacing
 import com.kirakit.theme.typography
@@ -61,21 +65,57 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
+internal fun LazyListScope.badgePlaygroundItems() {
+    galleryHeading("Variants & Sizes")
+    galleryItem("badge-variants") { VariantsSection() }
+    galleryItem("badge-sizes") { SizesSection() }
+
+    galleryHeading("Icons, Dots & Interactive")
+    galleryItem("badge-icons") { WithIconsSection() }
+    galleryItem("badge-dots") { DotIndicatorSection() }
+    galleryItem("badge-interactive") { InteractiveSection() }
+
+    galleryHeading("Specialized Badges")
+    galleryItem("badge-status") { StatusBadgeSection() }
+    galleryItem("badge-count") { CountBadgeSection() }
+    galleryItem("badge-tag") { TagBadgeSection() }
+    galleryItem("badge-group") { BadgeGroupSection() }
+
+    galleryHeading("Animation, Trends & Presets")
+    galleryItem("badge-ticker") { NumberTickerSection() }
+    galleryItem("badge-trends") { TrendsAndShimmerSection() }
+    galleryItem("badge-presets") { PresetsSection() }
+
+    galleryHeading("States, Tag Input & Unified API")
+    galleryItem("badge-states") { StatesSection() }
+    galleryItem("badge-tag-input") { TagInputSection() }
+    galleryItem("badge-unified") { KiraBadgeModesSection() }
+}
+
 @Composable
 internal fun BadgePlayground() {
     Column(verticalArrangement = Arrangement.spacedBy(KiraTheme.spacing.md)) {
+        SectionHeading("Variants & Sizes")
         VariantsSection()
         SizesSection()
+
+        SectionHeading("Icons, Dots & Interactive")
         WithIconsSection()
         DotIndicatorSection()
         InteractiveSection()
+
+        SectionHeading("Specialized Badges")
         StatusBadgeSection()
         CountBadgeSection()
         TagBadgeSection()
         BadgeGroupSection()
+
+        SectionHeading("Animation, Trends & Presets")
         NumberTickerSection()
         TrendsAndShimmerSection()
         PresetsSection()
+
+        SectionHeading("States, Tag Input & Unified API")
         StatesSection()
         TagInputSection()
         KiraBadgeModesSection()
@@ -84,7 +124,7 @@ internal fun BadgePlayground() {
 
 @Composable
 private fun VariantsSection() {
-    GalleryExample("Variants") {
+    GalleryExample("Badge Variants") {
         SubSection("Basic") {
             BadgeRow {
                 KiraBadge("Default", variant = KiraBadgeVariant.Default)
@@ -117,7 +157,7 @@ private fun VariantsSection() {
 
 @Composable
 private fun SizesSection() {
-    GalleryExample("Sizes") {
+    GalleryExample("Size Variants") {
         BadgeRow {
             KiraBadge("Extra Small", size = KiraBadgeSize.Xs)
             KiraBadge("Small", size = KiraBadgeSize.Sm)
@@ -130,7 +170,7 @@ private fun SizesSection() {
 
 @Composable
 private fun WithIconsSection() {
-    GalleryExample("With Icons") {
+    GalleryExample("Badges with Icons") {
         BadgeRow {
             KiraBadge("Approved", variant = KiraBadgeVariant.Default, icon = BadgeDemoIcon.Check)
             KiraBadge("Rejected", variant = KiraBadgeVariant.Destructive, icon = BadgeDemoIcon.Cross)
@@ -149,7 +189,7 @@ private fun WithIconsSection() {
 
 @Composable
 private fun DotIndicatorSection() {
-    GalleryExample("Dot Indicator") {
+    GalleryExample("Dot Indicators") {
         BadgeRow {
             KiraBadge("With Dot", dot = KiraBadgeDot.Default)
             KiraBadge("Success Dot", dot = KiraBadgeDot.Success)
@@ -174,7 +214,7 @@ private fun InteractiveSection() {
     var dismissedRemovable by rememberSaveable { mutableStateOf(false) }
     var dismissedClosable by rememberSaveable { mutableStateOf(false) }
 
-    GalleryExample("Interactive") {
+    GalleryExample("Interactive Badges") {
         SubSection("Clickable") {
             BadgeRow {
                 KiraBadge(
@@ -471,7 +511,7 @@ private fun TrendsAndShimmerSection() {
 
 @Composable
 private fun PresetsSection() {
-    GalleryExample("Beta / Version") {
+    GalleryExample("Preset Badges (Beta / Version)") {
         BadgeRow {
             KiraBadge(preset = KiraBadgePreset.Beta)
             KiraBadge(preset = KiraBadgePreset.New, shimmer = true)
@@ -496,7 +536,7 @@ private fun StatesSection() {
     var tickerFormat by rememberSaveable { mutableStateOf(KiraBadgeCountFormat.Default) }
     var dismissedDemo by rememberSaveable { mutableStateOf(false) }
 
-    GalleryExample("States") {
+    GalleryExample("Badge States") {
         BadgeRow {
             KiraBadge("Loading", loading = true)
             KiraBadge("Loading", loading = true, variant = KiraBadgeVariant.Outline)
@@ -619,7 +659,7 @@ private fun TagInputSection() {
 
 @Composable
 private fun KiraBadgeModesSection() {
-    GalleryExample("KiraBadge") {
+    GalleryExample("KiraBadge — Unified Mode API") {
         SubSection("One component, every mode") {
             BadgeRow {
                 KiraBadge(

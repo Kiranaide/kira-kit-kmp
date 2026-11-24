@@ -3,7 +3,7 @@ plugins {
     alias(libs.plugins.composeCompiler)
 }
 
-val appVersionName = providers.gradleProperty("VERSION_NAME").getOrElse("0.1.0")
+val appVersionName = providers.gradleProperty("VERSION_NAME").getOrElse("0.2.0")
 val appVersionCode = providers.gradleProperty("ANDROID_VERSION_CODE")
     .orElse(providers.environmentVariable("CI_BUILD_NUMBER"))
     .map(String::toInt)
@@ -56,6 +56,12 @@ android {
                 signingConfigs.getByName("debug")
             }
         }
+        create("benchmark") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
+            isDebuggable = false
+        }
     }
 
     buildFeatures {
@@ -77,4 +83,5 @@ android {
 dependencies {
     implementation(projects.gallery)
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.profileinstaller)
 }

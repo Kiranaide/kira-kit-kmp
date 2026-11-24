@@ -2,7 +2,6 @@ package com.kirakit.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
@@ -99,9 +98,6 @@ object KiraRadiusPresets {
     val All: List<KiraRadiusPreset> = listOf(Sharp, Crisp, Balanced, Soft, Pill)
 }
 
-val KiraRadiusScale.shapeXxl: RoundedCornerShape get() = RoundedCornerShape(xxl)
-val KiraRadiusScale.shapeXxxl: RoundedCornerShape get() = RoundedCornerShape(xxxl)
-val KiraRadiusScale.shapeXxxxl: RoundedCornerShape get() = RoundedCornerShape(xxxxl)
 val KiraRadiusScale.shapeFull get() = CircleShape
 
 /**

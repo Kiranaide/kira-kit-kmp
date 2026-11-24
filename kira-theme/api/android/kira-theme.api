@@ -132,9 +132,6 @@ public final class com/kirakit/theme/KiraRadiusPresets {
 public final class com/kirakit/theme/KiraRadiusPresetsKt {
 	public static final fun KiraTheme (Lcom/kirakit/theme/KiraThemeDefinition;ZLcom/kirakit/theme/KiraRadiusScale;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
 	public static final fun getShapeFull (Lcom/kirakit/theme/KiraRadiusScale;)Landroidx/compose/foundation/shape/RoundedCornerShape;
-	public static final fun getShapeXxl (Lcom/kirakit/theme/KiraRadiusScale;)Landroidx/compose/foundation/shape/RoundedCornerShape;
-	public static final fun getShapeXxxl (Lcom/kirakit/theme/KiraRadiusScale;)Landroidx/compose/foundation/shape/RoundedCornerShape;
-	public static final fun getShapeXxxxl (Lcom/kirakit/theme/KiraRadiusScale;)Landroidx/compose/foundation/shape/RoundedCornerShape;
 }
 
 public final class com/kirakit/theme/KiraRadiusScale {
@@ -156,6 +153,9 @@ public final class com/kirakit/theme/KiraRadiusScale {
 	public final fun getShapeMd ()Landroidx/compose/foundation/shape/RoundedCornerShape;
 	public final fun getShapeSm ()Landroidx/compose/foundation/shape/RoundedCornerShape;
 	public final fun getShapeXl ()Landroidx/compose/foundation/shape/RoundedCornerShape;
+	public final fun getShapeXxl ()Landroidx/compose/foundation/shape/RoundedCornerShape;
+	public final fun getShapeXxxl ()Landroidx/compose/foundation/shape/RoundedCornerShape;
+	public final fun getShapeXxxxl ()Landroidx/compose/foundation/shape/RoundedCornerShape;
 	public final fun getSm-D9Ej5fM ()F
 	public final fun getXl-D9Ej5fM ()F
 	public final fun getXxl-D9Ej5fM ()F

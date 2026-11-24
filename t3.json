@@ -5,6 +5,21 @@
       "name": "Run Desktop Gallery",
       "command": "cmd.exe /d /c .\\run-desktop.bat",
       "icon": "play"
+    },
+    {
+      "name": "Build Android",
+      "command": "cmd.exe /d /c .\\build-android.bat",
+      "icon": "build"
+    },
+    {
+      "name": "Build iOS",
+      "command": "cmd.exe /d /c .\\build-ios.bat",
+      "icon": "build"
+    },
+    {
+      "name": "Build Desktop",
+      "command": "cmd.exe /d /c .\\build-desktop.bat",
+      "icon": "build"
     }
   ]
 }

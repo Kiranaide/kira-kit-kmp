@@ -1,18 +1,35 @@
 ﻿# Kira Kit KMP
 
-Kira Kit V2's design tokens and UI components for Kotlin Multiplatform. The same Compose gallery runs on Android, iOS, and JVM desktop.
+Kira Kit design tokens and UI components for Kotlin Multiplatform. The same Compose gallery runs on Android, iOS, and JVM desktop.
 
 | Module | What goes there |
 | --- | --- |
-| `kira-theme` | Generated color and radius tokens, plus typography, spacing, and motion. |
-| `kira-components` | Shared Compose Foundation components and Compose Unstyled primitives. Platform-specific behavior such as haptics uses `expect` and `actual`. |
-| `gallery` | Shared UI Preview playground and the desktop launcher. |
-| `androidApp` | Android Activity and app packaging. |
+| `kira-theme` | Generated color and radius tokens, plus typography, spacing, radius presets, and motion specs. |
+| `kira-components` | Shared Compose Foundation components and Compose Unstyled primitives (no Material 3 dependency). Platform-specific behavior such as haptics uses `expect` and `actual`. |
+| `gallery` | Shared UI Preview playground with interactive controls for every component and the desktop launcher. |
+| `androidApp` | Android Activity, Baseline Profile (`baseline-prof.txt`), R8 release config, profileable `benchmark` build type, and app packaging. |
 | `iosApp` | SwiftUI app that hosts the `KiraGallery` Kotlin framework. |
 
-## Run the gallery
+## Components
 
-Set `JAVA_HOME` to JDK 17 or 21. The October 2026 toolchain uses Kotlin 2.4.21, Compose Multiplatform 1.12.2, AGP 9.5.0, and the Gradle 9.6.0 wrapper. [Kotlin releases](https://kotlinlang.org/releases.html), [Compose compatibility](https://kotlinlang.org/docs/multiplatform/compose-compatibility-and-versioning.html), [AGP 9.5 requirements](https://developer.android.com/build/releases/agp-9-5-0-release-notes)
+- **Actions & Controls:** `KiraButton`, `KiraCheckbox`, `KiraInput`, `KiraLabel`, `KiraRadioGroup`, `KiraSelect`, `KiraSlider`, `KiraStepper`, `KiraSwitch`, `KiraTextarea`, `KiraToggle`, `KiraToggleGroup`
+- **Date & Time:** `KiraDatePicker`, `KiraDateRangePicker`, `KiraDateTimePicker`, `KiraTimePicker`
+- **Layout & Navigation:** `KiraAccordion`, `KiraCard`, `KiraMenubar`, `KiraNavigationMenu`, `KiraSeparator`, `KiraSidebar`, `KiraTabs`
+- **Overlays & Menus:** `KiraAlertDialog`, `KiraContextMenu`, `KiraDialog`, `KiraDrawer`, `KiraDropdownMenu`, `KiraModal`, `KiraPopover`, `KiraSheet`, `KiraSpotlight`, `KiraTooltip`
+- **Feedback & Display:** `KiraAlert`, `KiraAvatar`, `KiraBadge`, `KiraProgress`, `KiraSkeleton`, `KiraToast`
+
+## Run & build the gallery
+
+Set `JAVA_HOME` to JDK 17 or 21. The toolchain uses Kotlin 2.4.21, Compose Multiplatform 1.12.2, AGP 9.5.2, Compose Unstyled 2.10.2, and the Gradle 9.9.2 wrapper. [Kotlin releases](https://kotlinlang.org/releases.html), [Compose compatibility](https://kotlinlang.org/docs/multiplatform/compose-compatibility-and-versioning.html), [AGP 9.5 requirements](https://developer.android.com/build/releases/agp-9-5-0-release-notes)
+
+### Convenience build scripts
+
+Helper scripts are available at the repository root (Windows `.bat` scripts automatically select JDK 21/17):
+
+- `./build.sh [android|ios|desktop|all] [--release|--benchmark|--installer]`
+- `.\build-android.bat [--release|--benchmark]`
+- `.\build-desktop.bat [--installer]` / `.\run-desktop.bat`
+- `.\build-ios.bat` (compiles `iosArm64` + `iosSimulatorArm64` KLIBs on non-macOS hosts)
 
 ### Android
 
@@ -21,6 +38,8 @@ Install Android SDK Platform 37 and Build Tools 36.0.0. Open the project root in
 ```powershell
 .\gradlew.bat :androidApp:assembleDebug
 .\gradlew.bat :androidApp:installDebug
+.\gradlew.bat :androidApp:installRelease
+.\gradlew.bat :androidApp:assembleBenchmark
 ```
 
 The app compiles against API 37 to satisfy Compose and Compose Unstyled dependency metadata. It targets API 36 and supports devices running API 24 or later. The Android host is a standalone application module and shared modules use the Android Gradle library plugin for KMP. [Android KMP plugin](https://developer.android.com/kotlin/multiplatform/plugin)
@@ -39,6 +58,12 @@ Run these commands from the repository root. On Windows, use `gradlew.bat` in pl
 ./gradlew :gallery:run
 ./gradlew :kira-theme:jvmTest :kira-components:jvmTest
 ```
+
+## Performance & mobile optimization
+
+- **Compose Compiler stability:** Shared `compose-stability.conf` across `:kira-theme`, `:kira-components`, and `:gallery`. Pass `-PcomposeCompilerReports=true` to generate compiler stability/skippability reports under `build/compose_compiler`.
+- **Allocation-free theme lookups:** `KiraTheme.colors`, `KiraTheme.radius`, `KiraTheme.spacing`, and `KiraTheme.typography` are `@ReadOnlyComposable`; radius `RoundedCornerShape` instances and `KiraMotion` animation specs are pre-allocated once.
+- **Android R8 & ART Baseline Profiles:** `:kira-theme` and `:kira-components` publish consumer R8 rules (`consumer-rules.pro`); `:androidApp` ships a Baseline Profile (`androidApp/src/main/baseline-prof.txt`) with `androidx.profileinstaller` and a profileable `benchmark` build variant for measuring release performance.
 
 ## Add a component
 
@@ -67,9 +92,9 @@ dependencyResolutionManagement {
 }
 
 // build.gradle.kts (commonMain.dependencies)
-implementation("io.github.kiranaide:kira-components:0.1.0") // transitively includes kira-theme
+implementation("io.github.kiranaide:kira-components:0.2.0") // transitively includes kira-theme
 // Or tokens only:
-implementation("io.github.kiranaide:kira-theme:0.1.0")
+implementation("io.github.kiranaide:kira-theme:0.2.0")
 ```
 
 ## Branching, CI/CD & releases

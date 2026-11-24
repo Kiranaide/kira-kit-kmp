@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicText
@@ -35,12 +34,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
@@ -86,27 +86,33 @@ fun KiraCard(
     val colors = KiraTheme.colors
     val isDark = colors.background.luminance() < 0.5f
     val shape = KiraTheme.radius.shapeXl
-    val source = remember { MutableInteractionSource() }
-    val hovered by source.collectIsHoveredAsState()
-    val focused by source.collectIsFocusedAsState()
     val isInteractiveVariant = enabled && variant == KiraCardVariant.Interactive
     val isClickable = enabled && onClick != null
+    val tracksInteraction = isInteractiveVariant || onClick != null
 
-    val elevation by animateDpAsState(
-        targetValue = when (variant) {
-            KiraCardVariant.Elevated2 -> 18.dp
-            KiraCardVariant.Elevated, KiraCardVariant.Glass -> 8.dp
-            KiraCardVariant.Interactive -> if (isInteractiveVariant && hovered) 8.dp else 0.dp
-            else -> 0.dp
-        },
-        animationSpec = tween(durationMillis = 200, easing = KiraMotion.EaseOutStrong),
-        label = "CardElevation",
-    )
-    val lift by animateDpAsState(
-        targetValue = if (isInteractiveVariant && hovered) (-4).dp else 0.dp,
-        animationSpec = tween(durationMillis = 200, easing = KiraMotion.EaseOutStrong),
-        label = "CardLift",
-    )
+    val source = if (tracksInteraction) remember { MutableInteractionSource() } else null
+    val hovered = if (source != null) source.collectIsHoveredAsState().value else false
+    val focused = if (source != null) source.collectIsFocusedAsState().value else false
+
+    val elevation = when (variant) {
+        KiraCardVariant.Elevated2 -> 18.dp
+        KiraCardVariant.Elevated, KiraCardVariant.Glass -> 8.dp
+        KiraCardVariant.Interactive -> animateDpAsState(
+            targetValue = if (isInteractiveVariant && hovered) 8.dp else 0.dp,
+            animationSpec = KiraMotion.fastTween(),
+            label = "CardElevation",
+        ).value
+        else -> 0.dp
+    }
+    val liftState = if (variant == KiraCardVariant.Interactive) {
+        animateDpAsState(
+            targetValue = if (isInteractiveVariant && hovered) (-4).dp else 0.dp,
+            animationSpec = KiraMotion.fastTween(),
+            label = "CardLift",
+        )
+    } else {
+        null
+    }
 
     val fill = when (variant) {
         KiraCardVariant.Outline -> Color.Transparent
@@ -116,15 +122,16 @@ fun KiraCard(
         else -> colors.card
     }
     val surface = if (variant == KiraCardVariant.Gradient) {
-        Modifier.background(
+        val gradientBrush = remember(colors.primary, colors.secondary) {
             Brush.linearGradient(
                 listOf(
                     colors.primary.copy(alpha = 0.10f),
                     colors.secondary.copy(alpha = 0.10f),
                     colors.primary.copy(alpha = 0.05f),
                 ),
-            ),
-        )
+            )
+        }
+        Modifier.background(gradientBrush)
     } else {
         Modifier.background(fill)
     }
@@ -149,7 +156,7 @@ fun KiraCard(
     }
 
     val action = when {
-        onClick != null -> Modifier
+        onClick != null && source != null -> Modifier
             .hoverable(source, enabled = enabled)
             .clickable(
                 interactionSource = source,
@@ -158,43 +165,56 @@ fun KiraCard(
                 role = Role.Button,
                 onClick = onClick,
             )
-        isInteractiveVariant -> Modifier.hoverable(source)
+        isInteractiveVariant && source != null -> Modifier.hoverable(source)
         else -> Modifier
     }
 
     val shadowColor = Color.Black.copy(alpha = if (isDark) 0.45f else 0.16f)
+    val shadowMod = if (elevation > 0.dp) {
+        Modifier.shadow(
+            elevation = elevation,
+            shape = shape,
+            ambientColor = shadowColor,
+            spotColor = shadowColor,
+        )
+    } else {
+        Modifier
+    }
+    val liftMod = if (liftState != null) {
+        Modifier.graphicsLayer { translationY = liftState.value.toPx() }
+    } else {
+        Modifier
+    }
+    val disabledAlphaMod = if (enabled) Modifier else Modifier.graphicsLayer { alpha = 0.55f }
 
     CompositionLocalProvider(LocalCardSize provides size) {
         Box(
             modifier = modifier
-                .offset(y = lift)
-                .shadow(
-                    elevation = elevation,
-                    shape = shape,
-                    ambientColor = shadowColor,
-                    spotColor = shadowColor,
-                )
+                .then(liftMod)
+                .then(shadowMod)
                 .clip(shape)
                 .then(pointerMod)
                 .then(action)
-                .alpha(if (enabled) 1f else 0.55f)
-                .semantics { if (!enabled) disabled() },
+                .then(disabledAlphaMod)
+                .then(if (!enabled) Modifier.semantics { disabled() } else Modifier),
             propagateMinConstraints = true,
         ) {
             if (variant == KiraCardVariant.Glass && backdrop != null) {
-                Box(Modifier.matchParentSize().blur(20.dp), content = backdrop)
+                Box(Modifier.matchParentSize().blur(20.dp, BlurredEdgeTreatment.Rectangle), content = backdrop)
             }
             Column(
                 modifier = Modifier
                     .then(surface)
                     .then(border)
-                    .padding(contentPadding ?: PaddingValues(if (size == KiraCardSize.Sm) 16.dp else 24.dp)),
+                    .padding(contentPadding ?: if (size == KiraCardSize.Sm) CardPaddingSm else CardPaddingDefault),
                 content = content,
             )
         }
     }
 }
 
+private val CardPaddingDefault = PaddingValues(24.dp)
+private val CardPaddingSm = PaddingValues(16.dp)
 private val LocalCardSize = staticCompositionLocalOf { KiraCardSize.Default }
 
 @Composable
@@ -264,7 +284,7 @@ fun KiraCardFooter(modifier: Modifier = Modifier, content: @Composable RowScope.
 @Composable
 fun KiraCardSkeleton(modifier: Modifier = Modifier, size: KiraCardSize = KiraCardSize.Default) {
     val transition = rememberInfiniteTransition(label = "Card skeleton")
-    val opacity by transition.animateFloat(
+    val opacityState = transition.animateFloat(
         initialValue = 1f,
         targetValue = 0.50f,
         animationSpec = infiniteRepeatable(tween(KiraMotion.PingOnceMs), RepeatMode.Reverse),
@@ -274,16 +294,15 @@ fun KiraCardSkeleton(modifier: Modifier = Modifier, size: KiraCardSize = KiraCar
         modifier = modifier.semantics { progressBarRangeInfo = ProgressBarRangeInfo.Indeterminate },
         size = size,
     ) {
-        val color = KiraTheme.colors.muted.copy(alpha = opacity)
+        val color = KiraTheme.colors.muted
         val shape = KiraTheme.radius.shapeSm
         val compact = size == KiraCardSize.Sm
         val lineHeight = if (compact) 10.dp else 12.dp
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        val pulseMod = Modifier.graphicsLayer { alpha = opacityState.value }
+        Column(modifier = pulseMod, verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Box(Modifier.width(if (compact) 80.dp else 112.dp).height(if (compact) 12.dp else 16.dp).background(color, shape))
             Box(Modifier.width(if (compact) 128.dp else 176.dp).height(lineHeight).background(color, shape))
-        }
-        Spacer(Modifier.height(12.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Spacer(Modifier.height(4.dp))
             Box(Modifier.fillMaxWidth().height(lineHeight).background(color, shape))
             Box(Modifier.fillMaxWidth(0.80f).height(lineHeight).background(color, shape))
         }
